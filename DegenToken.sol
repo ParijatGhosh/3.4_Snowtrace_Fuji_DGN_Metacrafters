@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.25;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -8,6 +8,11 @@ import "hardhat/console.sol";
 
 contract DegenToken is ERC20, Ownable, ERC20Burnable {
 
+    event ItemRedeemed(address indexed player, string item);
+
+    // Mapping to keep track of redeemed items for each player
+    mapping(address => string[]) private redeemedItems;
+
     constructor() ERC20("Degen", "DGN") Ownable(msg.sender) {}
 
     function mint(address to, uint256 amount) public onlyOwner {
@@ -15,7 +20,7 @@ contract DegenToken is ERC20, Ownable, ERC20Burnable {
     }
 
     function transferTokens(address _receiver, uint amount) external {
-        require(balanceOf(msg.sender) >= amount, "you are not owner");
+        require(balanceOf(msg.sender) >= amount, "Insufficient balance");
         approve(msg.sender, amount);
         transferFrom(msg.sender, _receiver, amount);
     }
@@ -25,28 +30,39 @@ contract DegenToken is ERC20, Ownable, ERC20Burnable {
     }
 
     function burnTokens(uint amount) external {
-        require(balanceOf(msg.sender) >= amount, "You do not have enough Tokens");
+        require(balanceOf(msg.sender) >= amount, "Insufficient balance");
         _burn(msg.sender, amount);
     }
 
     function gameStore() public pure returns (string memory) {
-        return "1.t-shirt NFT value = 200 \n 2. Boots value = 100 \n 3. Hat value = 75";
+        return "1. T-shirt NFT value = 200 \n2. Boots value = 100 \n3. Hat value = 75";
     }
 
-    function redeemTokens(uint choice) external payable {
-        require(choice <= 3, "Invalid selection");
+    function redeemTokens(uint choice) external {
+        require(choice >= 1 && choice <= 3, "Invalid selection");
+
+        string memory item;
+        uint cost;
+
         if (choice == 1) {
-            require(balanceOf(msg.sender) >= 200, "Insufficient Balance");
-            approve(msg.sender, 200);
-            transferFrom(msg.sender, owner(), 200);
+            item = "T-shirt NFT";
+            cost = 200;
         } else if (choice == 2) {
-            require(balanceOf(msg.sender) >= 100, "Insufficient Balance");
-            approve(msg.sender, 100);
-            transferFrom(msg.sender, owner(), 100);
-        } else {
-            require(balanceOf(msg.sender) >= 75, "Insufficient Balance");
-            approve(msg.sender, 75);
-            transferFrom(msg.sender, owner(), 75);
+            item = "Boots";
+            cost = 100;
+        } else if (choice == 3) {
+            item = "Hat";
+            cost = 75;
         }
-        }
-        }
+
+        require(balanceOf(msg.sender) >= cost, "Insufficient balance");
+
+        _burn(msg.sender, cost);
+        redeemedItems[msg.sender].push(item);
+        emit ItemRedeemed(msg.sender, item);
+    }
+
+    function getRedeemedItems() external view returns (string[] memory) {
+        return redeemedItems[msg.sender];
+    }
+}
